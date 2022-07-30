@@ -1,0 +1,13 @@
+# Project exclude paths
+/.gradle/
+/Indigo Card Game/task/build/
+/Indigo Card Game/task/out/
+/Indigo Card Game/task/out/production/classes/
+/Topics/Declaring classes/New planet/out/
+/Topics/Declaring classes/New planet/out/production/classes/
+/Topics/If expression/Number dividers/out/
+/Topics/If expression/Number dividers/out/production/classes/
+/Topics/Named arguments/Perimeter/out/
+/Topics/Named arguments/Perimeter/out/production/classes/
+/Topics/Overriding functions/Fix bugs/out/
+/Topics/Overriding functions/Fix bugs/out/production/classes/
