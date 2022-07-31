@@ -2,6 +2,10 @@ package indigo
 
 import kotlin.system.exitProcess
 
+const val MIN_CARDS_WHEN_CAN_BE_OFFSUITED = 4
+const val NUMBER_OF_TURNS = 6
+const val NUMBER_OF_DEALS = 4
+
 enum class Suits(val suit: String) {
     CLUB("♣"),
     DIAMOND("♦"),
@@ -97,7 +101,16 @@ open class Player {
 }
 
 class CPU : Player() {
+    // List of cards which can win the cards on the table
     val candidateCards: MutableList<Card> = mutableListOf()
+
+    fun printHand(): String {
+        val string = StringBuilder()
+        for (i in hand.indices) {
+            string.append("${hand[i]} ")
+        }
+        return string.toString()
+    }
 }
 
 class Game(
@@ -106,16 +119,11 @@ class Game(
     private val table: Table,
     private val isPlayerBegins: Boolean
 ) {
-
     fun startGame() {
         table.initCards()
         //if player begins
         mainGameLoop()
-        if (table.cardsOnTable.isEmpty()) {
-            println("No cards on the table")
-        } else {
-            println("${table.cardsOnTable.size} cards on the table, and the top card is ${table.cardsOnTable.last()}")
-        }
+        whatIsOnTablePrinter()
         ripLastCards()
         awardLast3Points()
         println("Game Over")
@@ -123,9 +131,9 @@ class Game(
     // 4deals * (6+6cards per deal) = 48 + 4 first cards on table = 52
     private fun mainGameLoop() {
         if (isPlayerBegins) {
-            repeat(4) {
+            repeat(NUMBER_OF_DEALS) {
                 dealCards()
-                repeat(6) {
+                repeat(NUMBER_OF_TURNS) {
                     playerTurn()
                     _CPUTurn()
                 }
@@ -139,6 +147,14 @@ class Game(
                     playerTurn()
                 }
             }
+        }
+    }
+
+    private fun whatIsOnTablePrinter() {
+        if (table.cardsOnTable.isEmpty()) {
+            println("No cards on the table")
+        } else {
+            println("${table.cardsOnTable.size} cards on the table, and the top card is ${table.cardsOnTable.last()}")
         }
     }
 
@@ -217,43 +233,143 @@ class Game(
         )
     }
 
-    // checks if there are any cards on the table and if suits are equal,
-    // if they are, puts the top card on the table
-    // takes cards to CPU's lastWonCards, counts score and prints it, takes cards to allWonCards and clears lastWonCards
-    //prints output and marks CPU as last winner by boolean variable, if they are not, puts top card on the table
-    private fun playCardAndCheckResult_CPU() {
-        if (table.cardsOnTable.isNotEmpty() && (player2.hand.last().suit == table.cardsOnTable.last().suit || player2.hand.last().rank == table.cardsOnTable.last().rank)) {
-            table.cardsOnTable.add(player2.hand.last())
-            player2.hand.remove(player2.hand.last())
-            println("Computer plays ${table.cardsOnTable.last()}")
-            takeCardsToAllWonCardsAndReturnScore(player2,player1)
+    // puts card on the table and delete it from the hand
+    private fun putCardOnTable(player: Player, element: Card) {
+        table.cardsOnTable.add(element)
+        player.hand.remove(element)
+    }
+
+    private fun smartCPU() {
+        if (table.cardsOnTable.isEmpty()) {
+            playSameSuitsRanksOrRandomCard(player2, player2.hand)
         } else {
-            table.cardsOnTable.add(player2.hand.last())
-            player2.hand.remove(player2.hand.last())
-            println("Computer plays ${table.cardsOnTable.last()}")
+            chooseCandidateCards()
+            if (player2.candidateCards.size > 1) {
+                playSameSuitsRanksOrRandomCard(player2, player2.candidateCards)
+                takeCardsToAllWonCardsAndReturnScore(player2, player1)
+            } else {
+                if (player2.candidateCards.isNotEmpty()) {
+                    putCardOnTable(player2, player2.candidateCards.random())
+                    println("Computer plays ${table.cardsOnTable.last()}")
+                    takeCardsToAllWonCardsAndReturnScore(player2, player1)
+                } else {
+                    playSameSuitsRanksOrRandomCard(player2, player2.hand)
+                }
+            }
+        }
+        player2.candidateCards.clear()
+    }
+
+    private fun playSameSuitsRanksOrRandomCard(player: Player, cards: MutableList<Card>) {
+        if (cards.size > MIN_CARDS_WHEN_CAN_BE_OFFSUITED) {
+            playRandomCardWithTheSameSuit(player, cards)
+        } else {
+            if (checkIfThereAreSameSuitedCards(cards)) {
+                playRandomCardWithTheSameSuit(player, cards)
+            } else if (checkIfThereAreSameRankedCards(cards)) {
+                playRandomCardWithTheSameRank(player, cards)
+            } else {
+                putCardOnTable(player, cards.random())
+                println("Computer plays ${table.cardsOnTable.last()}")
+            }
+
         }
     }
 
+    //chooses if there are any cards which can win the cards in the table and adds them to candidateCards
+    private fun chooseCandidateCards() {
+        for (i in player2.hand.indices) {
+            if (player2.hand[i].rank == table.cardsOnTable.last().rank || player2.hand[i].suit == table.cardsOnTable.last().suit) {
+                player2.candidateCards.add(player2.hand[i])
+            } else continue
+        }
+    }
+// checks if there are at least 2 cards in hand with the same suit and plays the second one
+
+    private fun checkIfThereAreSameSuitedCards(cards: MutableList<Card>): Boolean {
+        var counter = 0
+        for (suit in Suits.values()) {
+            counter = 0
+            for (i in cards.indices) {
+                if (suit.suit == cards[i].suit) {
+                    if (counter < 1) {
+                        counter++
+                    } else {
+                        return true
+                    }
+                } else continue
+            }
+        }
+        return false
+    }
+
+    private fun playRandomCardWithTheSameSuit(player: Player, cards: MutableList<Card>) {
+        var counter = 0
+        for (suit in Suits.values()) {
+            counter = 0
+            for (i in cards.indices) {
+                if (suit.suit == cards[i].suit) {
+                    if (counter < 1) {
+                        counter++
+                    } else {
+                        putCardOnTable(player, cards[i])
+                        println("Computer plays ${table.cardsOnTable.last()}")
+                        return
+                    }
+                } else continue
+            }
+        }
+    }
+
+    private fun checkIfThereAreSameRankedCards(cards: MutableList<Card>): Boolean {
+        var counter = 0
+        for (rank in Ranks.values()) {
+            counter = 0
+            for (i in cards.indices) {
+                if (rank.rank == cards[i].rank) {
+                    if (counter < 1) {
+                        counter++
+                    } else {
+                        return true
+                    }
+                } else continue
+            }
+        }
+        return false
+    }
+
+    // checks if there are at least 2 cards in hand with the same rank and plays the second one
+    private fun playRandomCardWithTheSameRank(player: Player, cards: MutableList<Card>) {
+        var counter = 0
+        for (rank in Ranks.values()) {
+            counter = 0
+            for (i in cards.indices) {
+                if (rank.rank == cards[i].rank) {
+                    if (counter < 1) {
+                        counter++
+                    } else {
+                        putCardOnTable(player, cards[i])
+                        println("Computer plays ${table.cardsOnTable.last()}")
+                        return
+                    }
+                } else continue
+            }
+        }
+    }
     // checks if there are any cards on the table and if suits are equal, if they are, puts card, which was chosen by the player on the table
     // takes cards to player's lastWonCards, counts score and prints it, takes cards to allWonCards and clears lastWonCards
     //prints output and marks player as last winner by boolean variable, if they are not, puts chosen card on the table
     private fun playCardAndCheckResult_Player(input: Int) {
         if (table.cardsOnTable.isNotEmpty() && (player1.hand[input - 1].suit == table.cardsOnTable.last().suit || player1.hand[input - 1].rank == table.cardsOnTable.last().rank)){
-            table.cardsOnTable.add(player1.hand[input - 1])
-            player1.hand.removeAt(input - 1)
+            putCardOnTable(player1 ,player1.hand[input - 1])
             takeCardsToAllWonCardsAndReturnScore(player1, player2)
         } else {
-            table.cardsOnTable.add(player1.hand[input - 1])
-            player1.hand.removeAt(input - 1)
+            putCardOnTable(player1, player1.hand[input - 1])
         }
     }
 
     private fun playerTurn() {
-        if (table.cardsOnTable.isEmpty()) {
-            println("No cards on the table")
-        } else {
-            println("${table.cardsOnTable.size} cards on the table, and the top card is ${table.cardsOnTable.last()}")
-        }
+        whatIsOnTablePrinter()
         println("Cards in hand: " + player1.printCardsInHand())
         var chosenCard: Any? = null
         loop@ do {
@@ -270,13 +386,9 @@ class Game(
     }
 
     private fun _CPUTurn() {
-        if (table.cardsOnTable.isEmpty()) {
-            println("No cards on the table")
-        } else {
-            println("${table.cardsOnTable.size} cards on the table, and the top card is ${table.cardsOnTable.last()}")
-        }
-        println("Cards in hand: " + player2.printCardsInHand())
-        playCardAndCheckResult_CPU()
+        whatIsOnTablePrinter()
+        println(player2.printHand())
+        smartCPU()
         println()
     }
 }
