@@ -464,3 +464,8 @@ fun ifExit(input: String): String {
 
 // General Notes:
 // You should avoid if possible using MutableLists. Try to use Immutable Lists.
+// Try to create short methods, doing only one thing.
+// Try to create some tests using JUnit
+// Move methods strictly connected to Objects to classes. For example if method modifies player state most probably it should be placed inside Player class.
+// Your program contains a lot of ifs/elseifs/else.
+// Consider adding winner flag to Game class and recreate new Game object on every new game.
