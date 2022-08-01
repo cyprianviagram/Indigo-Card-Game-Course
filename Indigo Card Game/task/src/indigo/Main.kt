@@ -28,6 +28,7 @@ enum class Ranks(val rank: String, val points: Int = 0) {
     TWO("2"),
     ACE("A", 1)
 }
+// 1. All ranks should have points declared. So in the result 101-109 lines can be simplified. Tip: use sumOf method
 
 class Card(val rank: String, val suit: String) {
     override fun toString(): String {
@@ -53,6 +54,21 @@ open class Deck {
     }
 }
 
+// Deck class can be simplified to:
+//class Deck {
+//    var cardDeck: List<Card> = initialize()//
+//
+//    private fun initialize(): List<Card> {
+//        return Suits.values().map{ suit -> Ranks.values().map{rank -> Card(rank.rank, suit.suit)}}.flatten().shuffled()
+//    }
+//}
+// 1. Initialize cardDeck on object creation.
+// 2. Simplifies initialize method.
+// 3. Shuffle method is not needed any more.
+// 4. No need to use open keyword. Open is not needed here.
+// 5. Mutable state removed.
+
+
 class Table {
     val playingDeck: Deck = Deck()
     val cardsOnTable = mutableListOf<Card>()
@@ -70,6 +86,9 @@ class Table {
         println()
     }
 }
+// 1. playingDeck should be injected into Table constructor. Not created inside body class. Avoid such a behavior.
+// 2. Mutable state should be removed.
+// 3. 3 is magic number here.
 
 open class Player {
     val hand: MutableList<Card> = mutableListOf()
@@ -90,6 +109,7 @@ open class Player {
             }
         }
     }
+// 1. didWinLast could be renamed to wonLast. Also, this variable might be not nullable.
 
     fun printCardsInHand(): String {
         val string = StringBuilder()
@@ -112,6 +132,8 @@ class CPU : Player() {
         return string.toString()
     }
 }
+
+// 1. No need to define printHand method again. It is defined already in parent class Player.
 
 class Game(
     private val player1: Player,
@@ -140,9 +162,9 @@ class Game(
             }
             // CPU begins
         } else {
-            repeat(4) {
+            repeat(4) { // magic number
                 dealCards()
-                repeat(6) {
+                repeat(6) { // magic number
                     _CPUTurn()
                     playerTurn()
                 }
@@ -178,7 +200,7 @@ class Game(
 
     private fun awardLast3Points() {
         if (player1.allWonCards.size > player2.allWonCards.size) {
-            player1.points += 3
+            player1.points += 3 // magicNumbers
             printScore(player1, player2)
         } else if (player2.allWonCards.size > player1.allWonCards.size) {
             player2.points += 3
@@ -196,8 +218,8 @@ class Game(
 
     // puts alternately 6 cards in player's and CPU's hand
     private fun dealCards() {
-        for (i in 0..11 step 2) {
-            player1.hand.add(table.playingDeck.cardDeck[i])
+        for (i in 0..11 step 2) { // magic Numbers
+            player1.hand.add(table.playingDeck.cardDeck[i]) // try to create inside Player class method "dealCard"
             player2.hand.add(table.playingDeck.cardDeck[i + 1])
         }
         table.playingDeck.cardDeck.removeAll(player1.hand)
@@ -232,6 +254,7 @@ class Game(
                     "Cards: Player ${player1.allWonCards.size} - Computer ${player2.allWonCards.size}"
         )
     }
+    // 1. You should not interpret if player is CPU by veryfing class type. You could add isCpu flag to Player class.
 
     // puts card on the table and delete it from the hand
     private fun putCardOnTable(player: Player, element: Card) {
@@ -239,7 +262,7 @@ class Game(
         player.hand.remove(element)
     }
 
-    private fun smartCPU() {
+    private fun smartCPU() { // too many ifs in this method
         if (table.cardsOnTable.isEmpty()) {
             playSameSuitsRanksOrRandomCard(player2, player2.hand)
         } else {
@@ -356,11 +379,14 @@ class Game(
             }
         }
     }
+     // playRandomCardWithTheSameRank &&  checkIfThereAreSameRankedCards && playRandomCardWithTheSameSuit && checkIfThereAreSameSuitedCardshas most of the logic the same. Try to simplify and create more generic method.
+
+
     // checks if there are any cards on the table and if suits are equal, if they are, puts card, which was chosen by the player on the table
     // takes cards to player's lastWonCards, counts score and prints it, takes cards to allWonCards and clears lastWonCards
     //prints output and marks player as last winner by boolean variable, if they are not, puts chosen card on the table
-    private fun playCardAndCheckResult_Player(input: Int) {
-        if (table.cardsOnTable.isNotEmpty() && (player1.hand[input - 1].suit == table.cardsOnTable.last().suit || player1.hand[input - 1].rank == table.cardsOnTable.last().rank)){
+    private fun playCardAndCheckResult_Player(input: Int) { // snake_case mixed with CamelCase
+        if (table.cardsOnTable.isNotEmpty() && (player1.hand[input - 1].suit == table.cardsOnTable.last().suit || player1.hand[input - 1].rank == table.cardsOnTable.last().rank)){ // this conditionn should be moved to separate method
             putCardOnTable(player1 ,player1.hand[input - 1])
             takeCardsToAllWonCardsAndReturnScore(player1, player2)
         } else {
@@ -385,7 +411,7 @@ class Game(
 
     }
 
-    private fun _CPUTurn() {
+    private fun _CPUTurn() { // should start with lowercase. Also there is no need to use _ underscore in begining of this method name.
         whatIsOnTablePrinter()
         println(player2.printHand())
         smartCPU()
@@ -436,3 +462,5 @@ fun ifExit(input: String): String {
 }
 
 
+// General Notes:
+// You should avoid if possible using MutableLists. Try to use Immutable Lists.
