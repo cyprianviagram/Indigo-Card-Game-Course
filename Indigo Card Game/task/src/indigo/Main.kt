@@ -28,7 +28,7 @@ enum class Ranks(val rank: String, val points: Int = 0) {
     TWO("2"),
     ACE("A", 1)
 }
-// 1. All ranks should have points declared. So in the result 101-109 lines can be simplified. Tip: use sumOf method
+// 1. Card class should accept val rank: Ranks, val suit: Suits. So thanks to that you will have access to points property from Ranks Enum. So in the result 101-109 lines can be simplified. Tip: use sumOf method
 
 class Card(val rank: String, val suit: String) {
     override fun toString(): String {
@@ -99,6 +99,7 @@ open class Player {
 
     fun countPoints() {
         for (i in lastWonCards.indices) {
+            points += lastWonCards[i].
             points += when (lastWonCards[i].rank) {
                 "A" -> Ranks.ACE.points
                 "K" -> Ranks.KING.points
