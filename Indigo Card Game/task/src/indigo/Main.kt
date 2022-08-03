@@ -5,6 +5,7 @@ import kotlin.system.exitProcess
 const val MIN_CARDS_WHEN_CAN_BE_OFFSUITED = 4
 const val NUMBER_OF_TURNS = 6
 const val NUMBER_OF_DEALS = 4
+const val INDEX_OF_LAST_INITIAL_CARD = 3
 
 enum class Suits(val suit: String) {
     CLUB("♣"),
@@ -29,28 +30,20 @@ enum class Ranks(val rank: String, val points: Int = 0) {
     ACE("A", 1)
 }
 // 1. Card class should accept val rank: Ranks, val suit: Suits. So thanks to that you will have access to points property from Ranks Enum. So in the result 101-109 lines can be simplified. Tip: use sumOf method
+//I've changed my code above implementing your tips
 
-class Card(val rank: String, val suit: String) {
+class Card(val rank: Ranks, val suit: Suits) {
     override fun toString(): String {
-        return "$rank$suit"
+        return "${rank.rank}${suit.suit}"
     }
 }
 
-open class Deck {
-    var cardDeck: MutableList<Card> = mutableListOf()
+class Deck {
+    var cardDeck: MutableList<Card> = initialize()
 
     // function build up a new deck of 52 cards using enum class Suits & Ranks
-    fun initialize() {
-        cardDeck = mutableListOf()
-        for (suit in Suits.values()) {
-            for (rank in Ranks.values()) {
-                cardDeck.add(Card(Ranks.valueOf("$rank").rank, Suits.valueOf("$suit").suit))
-            }
-        }
-    }
-
-    fun shuffle() {
-        cardDeck.shuffle()
+    private fun initialize(): MutableList<Card> {
+        return Suits.values().map { suits -> Ranks.values().map { ranks -> Card(ranks, suits) }  }.flatten().shuffled().toMutableList()
     }
 }
 
@@ -68,16 +61,13 @@ open class Deck {
 // 4. No need to use open keyword. Open is not needed here.
 // 5. Mutable state removed.
 
+// I've changed my code above implementing you tips (I've modified the 'initialize()' method a little bit). Ad. 4 - I made my class open, coz I had planned that I would have created some child-classes. But it didn't happen :D. ad 5. in my opinion i shouldn't remove mutable state. Certainly I need to remove cards from list.
+class Table (val playingDeck: Deck = Deck()){
 
-class Table {
-    val playingDeck: Deck = Deck()
     val cardsOnTable = mutableListOf<Card>()
 
-    // function initialize new, shuffled deck of playing cards and put 4 first cards on the table
     fun initCards() {
-        playingDeck.initialize()
-        playingDeck.shuffle()
-        for (i in 0..3) {
+        for (i in 0..INDEX_OF_LAST_INITIAL_CARD) {
             cardsOnTable.add(playingDeck.cardDeck[i])
         }
         playingDeck.cardDeck.removeAll(cardsOnTable)
@@ -90,29 +80,24 @@ class Table {
 // 2. Mutable state should be removed.
 // 3. 3 is magic number here.
 
+// Ad 1. Why should I avoid such a behavior?
+// Ad.2 As I wrote above - I don't think so
+// Ad.3 Mea culpa
+
 open class Player {
     val hand: MutableList<Card> = mutableListOf()
     val allWonCards: MutableList<Card> = mutableListOf()
     val lastWonCards: MutableList<Card> = mutableListOf()
     var points = 0
-    var didWinLast: Boolean? = null
+    var wonLast: Boolean? = null
 
     fun countPoints() {
-        for (i in lastWonCards.indices) {
-            points += lastWonCards[i].
-            points += when (lastWonCards[i].rank) {
-                "A" -> Ranks.ACE.points
-                "K" -> Ranks.KING.points
-                "Q" -> Ranks.QUEEN.points
-                "J" -> Ranks.JACK.points
-                "10" -> Ranks.TEN.points
-                else -> continue
-            }
+        points += lastWonCards.sumOf { it.rank.points }
         }
-    }
 // 1. didWinLast could be renamed to wonLast. Also, this variable might be not nullable.
+    // I think it should be nullable. In case when nobody won cards from table, the program checks if there are a null value and player who has begun the game would rip those cards.
 
-    fun printCardsInHand(): String {
+    open fun printCardsInHand(): String {
         val string = StringBuilder()
         for (i in hand.indices) {
             string.append("${i + 1})${hand[i]} ")
@@ -125,7 +110,7 @@ class CPU : Player() {
     // List of cards which can win the cards on the table
     val candidateCards: MutableList<Card> = mutableListOf()
 
-    fun printHand(): String {
+    override fun printCardsInHand(): String {
         val string = StringBuilder()
         for (i in hand.indices) {
             string.append("${hand[i]} ")
@@ -134,7 +119,8 @@ class CPU : Player() {
     }
 }
 
-// 1. No need to define printHand method again. It is defined already in parent class Player.
+// 1. No need to define printHand method again. It is defined already in parent class Player.\
+//Look on my solution. I don't know how to simplify that. Those two methods are not the same - look on the printing extract.
 
 class Game(
     private val player1: Player,
@@ -183,13 +169,13 @@ class Game(
 
     private fun ripLastCards() {
         when {
-            player1.didWinLast == true -> {
+            player1.wonLast == true -> {
                 takeCardsToAllWonCards(player1, player2)
             }
-            player2.didWinLast == true -> {
+            player2.wonLast == true -> {
                 takeCardsToAllWonCards(player2, player1)
             }
-            player1.didWinLast == null && player2.didWinLast == null -> {
+            player1.wonLast == null && player2.wonLast == null -> {
                 if (isPlayerBegins) {
                     takeCardsToAllWonCards(player1, player2)
                 } else {
@@ -236,8 +222,8 @@ class Game(
         winner.countPoints()
         winner.allWonCards.addAll(winner.lastWonCards)
         winner.lastWonCards.clear()
-        winner.didWinLast = true
-        loser.didWinLast = false
+        winner.wonLast = true
+        loser.wonLast = false
     }
 
     private fun printScore(player1: Player, player2: CPU) {
@@ -255,7 +241,8 @@ class Game(
                     "Cards: Player ${player1.allWonCards.size} - Computer ${player2.allWonCards.size}"
         )
     }
-    // 1. You should not interpret if player is CPU by veryfing class type. You could add isCpu flag to Player class.
+    // 1. You should not interpret if player is CPU by veryfing class type. You could add isCpu flag to Player class
+    // Why? I asked Wojtek about that and he told me it depended on how I project my program
 
     // puts card on the table and delete it from the hand
     private fun putCardOnTable(player: Player, element: Card) {
@@ -315,7 +302,7 @@ class Game(
         for (suit in Suits.values()) {
             counter = 0
             for (i in cards.indices) {
-                if (suit.suit == cards[i].suit) {
+                if (suit == cards[i].suit) {
                     if (counter < 1) {
                         counter++
                     } else {
@@ -332,7 +319,7 @@ class Game(
         for (suit in Suits.values()) {
             counter = 0
             for (i in cards.indices) {
-                if (suit.suit == cards[i].suit) {
+                if (suit == cards[i].suit) {
                     if (counter < 1) {
                         counter++
                     } else {
@@ -350,7 +337,7 @@ class Game(
         for (rank in Ranks.values()) {
             counter = 0
             for (i in cards.indices) {
-                if (rank.rank == cards[i].rank) {
+                if (rank == cards[i].rank) {
                     if (counter < 1) {
                         counter++
                     } else {
@@ -368,7 +355,7 @@ class Game(
         for (rank in Ranks.values()) {
             counter = 0
             for (i in cards.indices) {
-                if (rank.rank == cards[i].rank) {
+                if (rank == cards[i].rank) {
                     if (counter < 1) {
                         counter++
                     } else {
@@ -414,7 +401,7 @@ class Game(
 
     private fun _CPUTurn() { // should start with lowercase. Also there is no need to use _ underscore in begining of this method name.
         whatIsOnTablePrinter()
-        println(player2.printHand())
+        println(player2.printCardsInHand())
         smartCPU()
         println()
     }
@@ -444,7 +431,7 @@ fun whoStarts(action: String): Boolean {
 fun printDeck(deck: MutableList<Card>) {
     val deckAsString = StringBuilder()
     for (i in deck.indices) {
-        deckAsString.append(deck[i].rank + deck[i].suit + " ")
+        deckAsString.append(deck[i].rank.rank + deck[i].suit.suit + " ")
     }
     return println(deckAsString.toString())
 }
